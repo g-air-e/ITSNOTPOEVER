@@ -9,7 +9,7 @@ import {
   COOKIE,
   BROWSER,
 } from "./config.js";
-
+let charname = "";
 // configure browser options ...
 console.log(COOKIE);
 console.log(WEBDRIVERMODE);
@@ -18,15 +18,16 @@ var driver;
 if(WEBDRIVERMODE == true){
 
 if (BROWSER === "firefox") driver = new Builder().forBrowser("firefox").build();
+else if (BROWSER === 'chrome') driver = new Builder().forBrowser("chrome").build();
 else {
   var service = new edge.ServiceBuilder().setPort(55555).build();
   var options = new edge.Options();
   driver = edge.Driver.createSession(options, service);
 }
 
-  await driver.get("https://poe.com");
-await driver.manage().addCookie({ name: "p-b", value: COOKIE });
-await driver.get("https://poe.com/chatgpt");
+//   await driver.get("https://poe.com");
+// await driver.manage().addCookie({ name: "p-b", value: COOKIE });
+// await driver.get("https://poe.com/chatgpt");
 }
 
 async function test(req, res) {
@@ -75,7 +76,7 @@ async function convertPOEtoOAI(messages) {
         "index": 0,
         "message": {
           "role": "assistant",
-          "content": messageout
+          "content": `${charname}: ${messageout}`
         },
         "finish_reason": "stop"
       }
@@ -93,7 +94,7 @@ async function convertPOEtoOAI(messages) {
 
 async function convertOAIToPoe(messages) {
   console.log("oai to poe");
-  let charname = "";
+
   let newprompt = "";
   let systemsplit = messages[0].content.split("'s");
   
@@ -115,17 +116,24 @@ async function convertOAIToPoe(messages) {
   }
   let systemmsgs = ''
   console.log(`charname = ${charname}`);
+  let aftersystem = false
   for (let i in messages) {
     console.log(messages[i])
     if (messages[i].role === "system") {
-      if(messages[i].name === 'example_user')
-      systemmsgs += `Your example message : ${messages[i].content} \n`
-      else if(messages[i].name === 'example_assistant')
-      systemmsgs += `${charname}'s example message : ${messages[i].content} \n`
-      else
-      systemmsgs += `${messages[i].content}\n`
+      if(aftersystem){
+        newprompt += messages[i].content
+      } else {
+        if(messages[i].name === 'example_user')
+        systemmsgs += `Your example message : ${messages[i].content} \n`
+        else if(messages[i].name === 'example_assistant')
+        systemmsgs += `${charname}'s example message : ${messages[i].content} \n`
+        else
+        systemmsgs += `${messages[i].content}\n`
+      }
+
     }
     if (messages[i].role === "assistant") {
+      aftersystem = true
       newprompt += `${charname}: `;
       newprompt += messages[i].content;
       newprompt += "\n";
@@ -155,7 +163,6 @@ async function convertOAIToPoe(messages) {
     await textfield.sendKeys(Key.chord(Key.SHIFT, Key.ENTER));
   }
   await textfield.sendKeys(Key.ENTER)
-  console.log(`newprompt = ${newprompt}`);
   console.log("sending content");
   await driver.sleep(RESULTWAITING * 1000)
   return newprompt;
@@ -163,7 +170,6 @@ async function convertOAIToPoe(messages) {
 
 async function sagedriverCompletion(req, res) {
   let maxtoken = req.body.max_tokens;
-  console.log(req.body)
   driver
     .findElement(By.className("ChatMessageInputFooter_chatBreakButton__hqJ3v"))
     .click();
@@ -171,13 +177,13 @@ async function sagedriverCompletion(req, res) {
     let lastmsg = ''
     let src, newsrc = ''
     while(true){
+      await driver.sleep(2000)
       newsrc = await driver.getPageSource();
       if(src === newsrc){
         break
       }
       else
       src = newsrc
-      driver.sleep(1000)
     }
     let root = htmlparser.parse(src);
     let out = root.querySelectorAll(".Markdown_markdownContainer__UyYrv");
@@ -198,7 +204,10 @@ async function sagedriverCompletion(req, res) {
 
     console.log(lastmsg)
     let newres = await convertPOEtoOAI(lastmsg, maxtoken);
-    res.send(newres)
+    if(typeof newres == 'object')
+      newres = JSON.parse(JSON.stringify(newres))
+    console.log(newres)
+    res.status(200).json(newres)
 }
 
 export { sagedriverCompletion, test };
