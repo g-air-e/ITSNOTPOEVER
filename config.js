@@ -11,7 +11,7 @@ export const WHITELISTED_IPS = [
 ];
 // Prompt Moderation before sending to OpenAI
 export const MODERATION = false; // Moderation mode
-export let COOKIE = process.env.COOKIE || "yQeLIG9CRpvibwvcuxxxxx%xx%xx";
+export let COOKIE = process.env.COOKIE || "ySJ4ntS_WOqry0-myaLgw8w%3D%3D";
 export let BROWSER = process.env.BROWSER || "edge";
 export let WEBDRIVERMODE = process.env.DRIVERMODE == "true" || true;
 export let JBWAITING = process.env.JBWAITING || 5;
